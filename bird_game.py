@@ -1,9 +1,16 @@
 """탭2 새 잡기 게임 HTML 컴포넌트 생성"""
 import json
+from utils import _make_distractors
 
 
 def bird_game_html(verbs: list, num_birds: int = 5, game_time: int = 60) -> str:
-    verbs_json = json.dumps(verbs, ensure_ascii=False)
+    # 각 동사에 매력적 오답(흔한 실수형) 부착
+    enriched = []
+    for v in verbs:
+        item = dict(v)
+        item["distractors"] = _make_distractors(v["base"], v["past"], num_birds - 1)
+        enriched.append(item)
+    verbs_json = json.dumps(enriched, ensure_ascii=False)
     return r"""
 <!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><style>
 :root{--green:#2d6a4f;--green-light:#52b788;--green-pale:#d8f3dc;--sky1:#bde0fe;--sky2:#a2d2ff;--red:#e63946;--yellow:#f9c74f;}
@@ -61,7 +68,7 @@ const VERBS = __VERBS__;
 const NUM_BIRDS = __NUM__;
 const GAME_TIME = __TIME__;
 let sky,score,qnum,timeLeft,timerId,animId;
-let birds=[],current=null,history=[],playing=false;
+let birds=[],current=null,history=[],playing=false,acceptClick=false;
 const BIRD_COLORS=["#ef476f","#ffd166","#06d6a0","#118ab2","#f78c6b","#9b5de5","#00bbf9"];
 function rand(a,b){return a+Math.random()*(b-a);}
 function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -72,7 +79,7 @@ function startGame(){
   document.getElementById('startOverlay')?.remove();
   document.getElementById('resultOverlay')?.remove();
   document.getElementById('askRow').style.visibility='visible';
-  score=0;qnum=0;timeLeft=GAME_TIME;history=[];playing=true;
+  score=0;qnum=0;timeLeft=GAME_TIME;history=[];playing=true;acceptClick=true;
   document.getElementById('score').textContent=0;
   document.getElementById('qnum').textContent=0;
   updateTimer();addClouds();
@@ -86,22 +93,26 @@ function nextQuestion(){
   current=VERBS[Math.floor(Math.random()*VERBS.length)];
   qnum++;document.getElementById('qnum').textContent=qnum;
   document.getElementById('askText').innerHTML=`<b class="word">${current.base}</b> 의 과거형은? 🐦`;
-  // 오답: 정답과 다른 과거형 중 중복 없이 뽑기
+  // 매력적 오답(흔한 실수형) 우선, 모자라면 다른 동사 과거형으로 채움
   let seenPast={};seenPast[current.past]=true;
   let wrongs=[];
+  for(const d of (current.distractors||[])){
+    if(wrongs.length>=NUM_BIRDS-1)break;
+    if(d && !seenPast[d]){seenPast[d]=true;wrongs.push(d);}
+  }
   for(const v of shuffle(VERBS)){
     if(wrongs.length>=NUM_BIRDS-1)break;
-    if(!seenPast[v.past]){seenPast[v.past]=true;wrongs.push(v);}
+    if(!seenPast[v.past]){seenPast[v.past]=true;wrongs.push(v.past);}
   }
-  let labels=shuffle([current,...wrongs]);
+  let labels=shuffle([current.past,...wrongs]);
   const W=sky.clientWidth,H=sky.clientHeight;
-  labels.forEach((v,i)=>{
+  labels.forEach((pastForm,i)=>{
     const el=document.createElement('div');el.className='bird';
     const color=BIRD_COLORS[i%BIRD_COLORS.length];
-    el.innerHTML=birdSVG(color)+`<div class="label">${v.past}</div>`;
+    el.innerHTML=birdSVG(color)+`<div class="label">${pastForm}</div>`;
     const bx=rand(20,Math.max(40,W-120)),by=rand(20,Math.max(40,H-90));
     el.style.left=bx+'px';el.style.top=by+'px';sky.appendChild(el);
-    const b={el,x:bx,y:by,vx:rand(-1.4,1.4)||1,vy:rand(-1.1,1.1)||1,past:v.past,isAns:(v.past===current.past)};
+    const b={el,x:bx,y:by,vx:rand(-1.4,1.4)||1,vy:rand(-1.1,1.1)||1,past:pastForm,isAns:(pastForm===current.past)};
     el.addEventListener('click',()=>hitBird(b));birds.push(b);
   });
 }
@@ -118,16 +129,16 @@ function loop(){
   animId=requestAnimationFrame(loop);
 }
 function hitBird(b){
-  if(!playing)return;
+  if(!acceptClick)return;
   if(b.isAns){
     score++;document.getElementById('score').textContent=score;
     b.el.classList.add('correct-hit');flash('⭐+1','#06d6a0',b.x,b.y);
     history.push({base:current.base,past:current.past,pp:current.pp,meaning:current.meaning,ok:true});
-    playing=false;setTimeout(()=>{playing=true;nextQuestion();},250);
+    acceptClick=false;setTimeout(()=>{acceptClick=true;nextQuestion();},250);
   }else{
     b.el.classList.add('wrong-hit');flash('❌','#e63946',b.x,b.y);
     history.push({base:current.base,past:current.past,pp:current.pp,meaning:current.meaning,ok:false});
-    playing=false;setTimeout(()=>{playing=true;nextQuestion();},350);
+    acceptClick=false;setTimeout(()=>{acceptClick=true;nextQuestion();},350);
   }
 }
 function flash(txt,color,x,y){const f=document.createElement('div');f.className='flash';f.textContent=txt;f.style.color=color;f.style.left=(x+30)+'px';f.style.top=y+'px';sky.appendChild(f);setTimeout(()=>f.remove(),800);}

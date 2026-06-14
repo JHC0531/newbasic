@@ -87,6 +87,35 @@ def get_irregular_verbs() -> pd.DataFrame:
     return df[~df["type"].isin(["Regular (-ed)", "special"])].reset_index(drop=True)
 
 
+@st.cache_data
+def get_game_verbs(include_hard: bool = False) -> list:
+    """게임용 불규칙 동사 목록.
+    include_hard=False면 Easy만, True면 Average·Difficult까지 포함.
+    여러 형태(slash)는 첫 번째 형태만 사용."""
+    df = get_irregular_verbs()
+    if include_hard:
+        pool = df
+    else:
+        pool = df[df["level"] == "Easy"]
+
+    verbs = []
+    for _, r in pool.iterrows():
+        past = r["past"].split("/")[0].strip()
+        pp = r["pp"].split("/")[0].strip()
+        base = r["base"].strip()
+        if not base or not past or not pp or past == "-" or pp == "-":
+            continue
+        verbs.append({
+            "base": base,
+            "past": past,
+            "pp": pp,
+            "meaning": r["meaning"],
+            "type": r["type"],
+            "level": r["level"],
+        })
+    return verbs
+
+
 # 규칙변화 미니퀴즈 데이터 (CSV 깨짐 방지를 위해 코드에 직접 내장)
 _RULES_QUIZ_DATA = [
     ("1", "walk", "walked", "walkd", "walkt", "We walked along the beach after lunch."),

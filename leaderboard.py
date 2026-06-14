@@ -1,0 +1,77 @@
+"""구글시트 기반 반 전체 순위표 (점수 저장/불러오기)"""
+from datetime import datetime
+
+import streamlit as st
+
+
+def _get_sheet():
+    """구글시트 워크시트 객체 반환. 설정 안 됐으면 None."""
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+    except ImportError:
+        return None
+
+    try:
+        if "gcp_service_account" not in st.secrets:
+            return None
+    except Exception:
+        return None
+
+    try:
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive",
+        ]
+        creds = Credentials.from_service_account_info(
+            dict(st.secrets["gcp_service_account"]), scopes=scopes
+        )
+        client = gspread.authorize(creds)
+        sheet_url = st.secrets.get("sheet_url")
+        if not sheet_url:
+            return None
+        return client.open_by_url(sheet_url).sheet1
+    except Exception:
+        return None
+
+
+def is_online_ranking_available() -> bool:
+    """온라인 순위표 사용 가능 여부"""
+    return _get_sheet() is not None
+
+
+def add_score(name: str, score: int) -> bool:
+    """점수를 시트에 추가. 성공하면 True."""
+    sheet = _get_sheet()
+    if sheet is None:
+        return False
+    try:
+        ts = datetime.now().strftime("%Y-%m-%d %H:%M")
+        sheet.append_row([name, int(score), ts])
+        return True
+    except Exception:
+        return False
+
+
+@st.cache_data(ttl=10)
+def get_ranking(top_n: int = 20) -> list:
+    """순위표 불러오기 (점수 높은 순). [{name, score, time}, ...]"""
+    sheet = _get_sheet()
+    if sheet is None:
+        return []
+    try:
+        records = sheet.get_all_records()  # 헤더(name/score/time) 기준 dict 리스트
+        cleaned = []
+        for r in records:
+            try:
+                cleaned.append({
+                    "name": str(r.get("name", "")).strip(),
+                    "score": int(r.get("score", 0)),
+                    "time": str(r.get("time", "")),
+                })
+            except (ValueError, TypeError):
+                continue
+        cleaned.sort(key=lambda x: x["score"], reverse=True)
+        return cleaned[:top_n]
+    except Exception:
+        return []

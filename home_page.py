@@ -18,6 +18,74 @@ with col2:
 
 st.markdown("---")
 
+# ── 동사 변화형이란? ──
+st.markdown("### 🤔 동사 변화형이란?")
+st.markdown("""
+<div style="background:#fff;border-radius:14px;padding:18px 22px;
+box-shadow:0 4px 15px rgba(0,0,0,0.08);font-size:1.05rem;line-height:1.7;margin-bottom:18px;">
+영어 동사는 시제에 따라 모양이 바뀌어요. 그래서 한 동사마다
+<b style="color:var(--green);">3가지 형태</b>를 알아야 해요! 👇<br><br>
+<div style="text-align:center;font-size:1.2rem;font-weight:800;">
+<span style="color:#6c757d;">원형</span>
+&nbsp;→&nbsp;
+<span style="color:var(--orange);">과거형</span>
+&nbsp;→&nbsp;
+<span style="color:var(--red);">과거분사형</span></div>
+<div style="text-align:center;font-size:0.88rem;color:#888;margin-top:4px;">
+(base form) &nbsp; (past) &nbsp; (past participle)</div>
+</div>
+""", unsafe_allow_html=True)
+
+# ── 왜/언제 쓰는지 ──
+st.markdown("### 💡 그런데 이걸 왜 배워요? 언제 써요?")
+st.markdown("""
+<div style="background:var(--green-pale);border-radius:14px;padding:16px 20px;
+font-size:1rem;line-height:1.6;margin-bottom:14px;">
+과거형과 과거분사형은 <b>쓰는 곳이 정해져 있어요.</b> 아래 예문에서
+<span style="color:var(--orange);font-weight:800;">과거형</span>과
+<span style="color:var(--red);font-weight:800;">과거분사형</span>을 잘 봐! 👀
+</div>
+""", unsafe_allow_html=True)
+
+u1, u2 = st.columns(2)
+with u1:
+    st.markdown("""
+    <div class="vb-card" style="border-top-color:var(--orange);">
+    <h3 style="color:var(--orange);">⏰ 과거형</h3>
+    <div class="tag">과거에 있었던 일을 말할 때</div>
+    <div style="margin-top:8px;font-size:0.98rem;line-height:1.8;">
+    • I <b style="color:var(--orange);">played</b> soccer yesterday.<br>
+    <span style="color:#777;font-size:0.85rem;">나는 어제 축구를 <b>했다</b>.</span><br>
+    • She <b style="color:var(--orange);">went</b> to school.<br>
+    <span style="color:#777;font-size:0.85rem;">그녀는 학교에 <b>갔다</b>.</span>
+    </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+with u2:
+    st.markdown("""
+    <div class="vb-card" style="border-top-color:var(--red);">
+    <h3 style="color:var(--red);">✅ 과거분사형</h3>
+    <div class="tag">현재완료·수동태에 쓸 때</div>
+    <div style="margin-top:8px;font-size:0.98rem;line-height:1.8;">
+    • I have <b style="color:var(--red);">eaten</b> lunch. (현재완료)<br>
+    <span style="color:#777;font-size:0.85rem;">나는 점심을 (막) <b>먹었다</b>.</span><br>
+    • The cake was <b style="color:var(--red);">made</b> by mom. (수동태)<br>
+    <span style="color:#777;font-size:0.85rem;">그 케이크는 엄마가 <b>만들었다</b>.</span>
+    </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("""
+<div style="text-align:center;font-size:1.05rem;font-weight:700;color:var(--green);
+margin:14px 0 4px;">그래서 3단 변화를 알아야 영어 문장을 자유롭게 쓸 수 있어! 🚀</div>
+""", unsafe_allow_html=True)
+
+st.markdown("---")
+
+# ── 학습 메뉴 ──
+st.markdown("### 🎮 자, 이제 시작해볼까?")
+
 # ── Menu cards ──
 c1, c2, c3 = st.columns(3)
 

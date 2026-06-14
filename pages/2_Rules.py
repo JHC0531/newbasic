@@ -95,16 +95,25 @@ def build_choices(q):
 
 
 def raccoon_bubble(text, border=None):
-    """너구리 + 말풍선 (이미지 + 말풍선 가로 배치)"""
+    """너구리 + 말풍선 (정답 고를 때만 사용)"""
     style = f"border-left:5px solid {border};" if border else ""
-    c1, c2 = st.columns([1, 7])
+    c1, c2 = st.columns([1, 6])
     with c1:
-        st.image(str(MASCOT_PATH), width=58)
+        st.image(str(MASCOT_PATH), width=88)
     with c2:
         st.markdown(
-            f'<div class="raccoon-bubble" style="margin-top:8px;{style}">{text}</div>',
+            f'<div class="raccoon-bubble" style="margin-top:14px;{style}">{text}</div>',
             unsafe_allow_html=True,
         )
+
+
+def feedback_bubble(text, border=None):
+    """너구리 없이 말풍선만 (피드백·결과용)"""
+    style = f"border-left:5px solid {border};" if border else ""
+    st.markdown(
+        f'<div class="raccoon-bubble" style="margin:6px 0;{style}">{text}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_quiz(tab_idx, rule_keys):
@@ -119,7 +128,7 @@ def render_quiz(tab_idx, rule_keys):
         score = qs["score"]
         total = len(qs["questions"])
         msg = "완벽해! 🏆" if score == total else "잘했어! 🦝"
-        raccoon_bubble(f"{total}문제 중 <b>{score}개</b> 맞았어! {msg}")
+        feedback_bubble(f"{total}문제 중 <b>{score}개</b> 맞았어! {msg}")
         st.markdown("")
         if st.button("🔄 복습하기 (다른 문제)", key=f"review_{tab_idx}"):
             init_quiz(tab_idx, rule_keys)
@@ -138,15 +147,13 @@ def render_quiz(tab_idx, rule_keys):
 
     st.caption(f"문제 {q_num} / {total}")
 
-    # ── 문제 카드 (가로 길이 절반) ──
-    cL, cR = st.columns(2)
-    with cL:
-        st.markdown(f"""
-        <div class="verb-display" style="padding:18px;">
-            <div class="verb-meaning">다음 동사의 과거형은?</div>
-            <div class="verb-base">{q['동사원형']}</div>
-        </div>
-        """, unsafe_allow_html=True)
+    # ── 문제 카드 (가로 전체) ──
+    st.markdown(f"""
+    <div class="verb-display">
+        <div class="verb-meaning">다음 동사의 과거형은?</div>
+        <div class="verb-base">{q['동사원형']}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
     # ── 너구리 말풍선: 정답을 골라봐! ──
     raccoon_bubble(qs["raccoon"])
@@ -165,12 +172,12 @@ def render_quiz(tab_idx, rule_keys):
                     st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
     else:
-        # 정답/오답 피드백 (너구리 말풍선)
+        # 정답/오답 피드백 (너구리 없이 말풍선만)
         if qs["selected_answer"] == q["정답"]:
-            raccoon_bubble(f"정답이에요! 🎉 <b>{q['동사원형']} → {q['정답']}</b>",
-                           border="var(--green)")
+            feedback_bubble(f"정답이에요! 🎉 <b>{q['동사원형']} → {q['정답']}</b>",
+                            border="var(--green)")
         else:
-            raccoon_bubble(
+            feedback_bubble(
                 f"오답이에요! 🦝 네가 고른 건 <b>{qs['selected_answer']}</b>, "
                 f"정답은 <b>{q['정답']}</b>(이)야!",
                 border="var(--red)",

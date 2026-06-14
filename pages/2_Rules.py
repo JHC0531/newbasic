@@ -27,6 +27,7 @@ TABS = [
         "desc": "대부분의 일반 동사는 정해진 규칙에 따라 변해요. 가장 기본은 동사원형 뒤에 **-ed**를 붙이는 거예요!",
         "examples": ["want → wanted", "talk → talked", "stay → stayed"],
         "sentence": ("I <b>listened</b> to jazz music last night.", "나는 어젯밤에 재즈 음악을 들었다."),
+        "reason": "동사원형 뒤에 그대로 <b>-ed</b>를 붙이는 가장 기본 규칙이야!",
     },
     {
         "label": "2️⃣ 자음 + e → -d",
@@ -35,6 +36,7 @@ TABS = [
         "desc": "이미 **e**로 끝나니까, **d**만 붙이면 돼요. 편하죠? 😎",
         "examples": ["like → liked", "live → lived", "love → loved"],
         "sentence": ("Many students <b>liked</b> the new school event.", "많은 학생들이 새 학교 행사를 좋아했다."),
+        "reason": "이미 <b>e</b>로 끝나니까 <b>d</b>만 붙이면 돼! (ed를 통째로 붙이지 않아)",
     },
     {
         "label": "3️⃣ -y 규칙 🔑",
@@ -47,6 +49,7 @@ TABS = [
         ),
         "examples": ["study → studied", "try → tried", "play → played", "enjoy → enjoyed"],
         "sentence": ("He <b>studied</b> in the library.", "그는 도서관에서 공부했다."),
+        "reason": "y 앞이 <b>자음</b>이면 y→i로 바꾸고 ed, y 앞이 <b>모음</b>이면 그대로 ed를 붙여!",
     },
     {
         "label": "4️⃣ 단모음+단자음 → 자음 겹침 ✌️",
@@ -55,6 +58,7 @@ TABS = [
         "desc": "짧은 모음 소리 + 자음 하나로 끝나면, 마지막 자음을 **하나 더 쓰고** -ed를 붙여요.",
         "examples": ["stop → stopped", "plan → planned", "chat → chatted"],
         "sentence": ("The police <b>stepped</b> into the room carefully.", "경찰이 조심스럽게 방 안으로 발을 들여놓았다."),
+        "reason": "단모음+단자음으로 끝나서 마지막 <b>자음을 하나 더 쓰고</b> ed를 붙여!",
     },
 ]
 
@@ -116,7 +120,7 @@ def feedback_bubble(text, border=None):
     )
 
 
-def render_quiz(tab_idx, rule_keys):
+def render_quiz(tab_idx, rule_keys, reason=""):
     state_key = f"quiz_{tab_idx}"
     if state_key not in st.session_state:
         init_quiz(tab_idx, rule_keys)
@@ -147,11 +151,11 @@ def render_quiz(tab_idx, rule_keys):
 
     st.caption(f"문제 {q_num} / {total}")
 
-    # ── 문제 카드 (가로 전체) ──
+    # ── 문제 카드 (가로 전체, 진한 녹색) ──
     st.markdown(f"""
-    <div class="verb-display">
-        <div class="verb-meaning">다음 동사의 과거형은?</div>
-        <div class="verb-base">{q['동사원형']}</div>
+    <div class="verb-display" style="background:var(--green);">
+        <div class="verb-meaning" style="color:#d8f3dc;">과거형과 과거분사형은?</div>
+        <div class="verb-base" style="color:#ffffff;">{q['동사원형']}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -178,8 +182,8 @@ def render_quiz(tab_idx, rule_keys):
                             border="var(--green)")
         else:
             feedback_bubble(
-                f"오답이에요! 🦝 네가 고른 건 <b>{qs['selected_answer']}</b>, "
-                f"정답은 <b>{q['정답']}</b>(이)야!",
+                f"틀렸어! 🦝 답은 <b>{q['동사원형']} → {q['정답']}</b>(이)야.<br>"
+                f"<span style='font-size:0.92rem;color:#555;'>👉 {reason}</span>",
                 border="var(--red)",
             )
 
@@ -225,4 +229,4 @@ for tab_idx, (tab, tab_def) in enumerate(zip(tabs, TABS)):
         """, unsafe_allow_html=True)
 
         st.markdown("#### 🎯 바로 풀어보기")
-        render_quiz(tab_idx, tab_def["rule_keys"])
+        render_quiz(tab_idx, tab_def["rule_keys"], tab_def["reason"])

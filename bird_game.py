@@ -192,6 +192,16 @@ function endGame(){
       <div class="review" style="margin-top:8px;">${listHTML}</div></details>
     </div>`;
   sky.appendChild(ov);
+
+  // 부모(Streamlit)로 점수 자동 전송 (반 전체 순위표 저장용)
+  try{
+    const payload={type:'bird_score',name:playerName,score:score,ts:entryId};
+    window.parent.postMessage(payload,'*');
+    // URL 해시로도 백업 전달 (일부 환경 대비)
+    if(window.parent && window.parent.postMessage){
+      window.parent.postMessage({isStreamlitMessage:true, ...payload},'*');
+    }
+  }catch(e){}
 }
 </script></body></html>
 """.replace("__VERBS__", verbs_json).replace("__NUM__", str(num_birds)).replace("__TIME__", str(game_time))

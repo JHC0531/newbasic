@@ -81,6 +81,100 @@ with tabs[len(TYPE_TABS)]:
     html = bird_game_html(verbs, num_birds=5, game_time=60)
     components.html(html, height=560, scrolling=False)
 
+    # ── 게임 점수 자동 수신 브리지 (postMessage → URL 쿼리) ──
+    # 게임이 끝나면 자식 iframe이 부모로 점수를 보내고,
+    # 이 리스너가 받아서 부모 URL에 ?bird_name=..&bird_score=.. 를 붙여 새로고침함.
+    components.html("""
+    <script>
+    const seen = new Set();
+    window.addEventListener('message', (ev)=>{
+      const d = ev.data;
+      if(!d || d.type!=='bird_score') return;
+      const key = d.ts || (d.name+'_'+d.score);
+      if(seen.has(key)) return;
+      seen.add(key);
+      try{
+        const top = window.parent;
+        const url = new URL(top.location.href);
+        url.searchParams.set('bird_name', d.name||'');
+        url.searchParams.set('bird_score', d.score||0);
+        url.searchParams.set('bird_ts', d.ts||Date.now());
+        top.location.href = url.toString();
+      }catch(e){}
+    });
+    </script>
+    """, height=0)
+
+    # ── 반 전체 순위표 (구글시트 연동) ──
+    import leaderboard as lb
+
+    if lb.is_online_ranking_available():
+        # ── 자동 수신: URL 쿼리로 들어온 점수를 시트에 저장 ──
+        qp = st.query_params
+        if "bird_score" in qp and "bird_name" in qp:
+            ts = qp.get("bird_ts", "")
+            last_ts = st.session_state.get("last_saved_ts")
+            if ts != last_ts:  # 같은 기록 중복 저장 방지
+                nm = qp.get("bird_name", "").strip()
+                try:
+                    sc = int(qp.get("bird_score", 0))
+                except (ValueError, TypeError):
+                    sc = 0
+                if nm:
+                    if lb.add_score(nm, sc):
+                        lb.get_ranking.clear()
+                        st.session_state.last_saved_ts = ts
+                        st.success(f"🎉 {nm}님의 {sc}점이 자동으로 등록됐어!")
+            # 쿼리 정리 (새로고침해도 중복 저장 안 되게)
+            st.query_params.clear()
+
+        st.markdown("---")
+        st.markdown("### 🏆 우리 반 순위표")
+        st.caption("게임이 끝나면 점수가 자동으로 등록돼요! 안 되면 아래에 직접 입력해도 돼 🦝")
+
+        with st.expander("✍️ 점수 직접 등록하기 (자동 등록이 안 될 때)"):
+            rc1, rc2, rc3 = st.columns([2, 1, 1])
+            with rc1:
+                reg_name = st.text_input("이름", key="lb_name", placeholder="예: 김지현")
+            with rc2:
+                reg_score = st.number_input("점수", min_value=0, max_value=999, step=1, key="lb_score")
+            with rc3:
+                st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
+                if st.button("순위 등록 🏅", key="lb_submit", use_container_width=True):
+                    if reg_name.strip():
+                        ok = lb.add_score(reg_name.strip(), int(reg_score))
+                        if ok:
+                            lb.get_ranking.clear()
+                            st.success(f"🎉 {reg_name.strip()}님, {int(reg_score)}점 등록 완료!")
+                        else:
+                            st.error("등록에 실패했어요. 잠시 후 다시 시도해줘.")
+                    else:
+                        st.warning("이름을 입력해줘!")
+
+        # 순위표 표시
+        ranking = lb.get_ranking(top_n=20)
+        if ranking:
+            medals = ["🥇", "🥈", "🥉"]
+            rows = ""
+            for i, e in enumerate(ranking):
+                rank = medals[i] if i < 3 else f"<b>{i+1}</b>"
+                bg = "#fff8e1" if i < 3 else "#f1f6f2"
+                rows += (
+                    f'<div style="display:flex;align-items:center;justify-content:space-between;'
+                    f'background:{bg};padding:9px 16px;border-radius:10px;margin-bottom:5px;font-weight:700;">'
+                    f'<span style="width:46px;font-size:1.1rem;">{rank}</span>'
+                    f'<span style="flex:1;color:#333;">{e["name"]}</span>'
+                    f'<span style="color:var(--green);font-weight:800;">{e["score"]}점</span></div>'
+                )
+            st.markdown(f'<div style="max-width:480px;">{rows}</div>', unsafe_allow_html=True)
+            if st.button("🔄 순위표 새로고침", key="lb_refresh"):
+                lb.get_ranking.clear()
+                st.rerun()
+        else:
+            st.info("아직 등록된 점수가 없어요. 첫 번째 도전자가 되어보자! 🦝")
+    else:
+        st.caption("💡 게임 안에서 같은 기기 순위가 표시돼요. (반 전체 순위표는 준비 중)")
+
 # ══════════════════════════════════════════
 # 3단 변화 마스터 (주관식)
 # ══════════════════════════════════════════

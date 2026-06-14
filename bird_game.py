@@ -44,6 +44,15 @@ body{font-family:'Segoe UI','Malgun Gothic',sans-serif;}
 .review .item .ko{font-weight:500;font-size:0.85rem;opacity:.8;}
 .flash{position:absolute;font-weight:900;font-size:2rem;pointer-events:none;animation:floatUp .8s ease-out forwards;z-index:20;}
 @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1);}100%{opacity:0;transform:translateY(-50px) scale(1.4);}}
+.name-input{padding:10px 16px;font-size:1.05rem;border:2px solid var(--green-light);border-radius:12px;margin-bottom:14px;text-align:center;width:240px;outline:none;}
+.name-input:focus{border-color:var(--green);}
+.board{width:100%;max-width:420px;margin:4px 0 14px;text-align:left;}
+.board .brow{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-radius:10px;margin-bottom:5px;font-weight:700;background:#f1f6f2;}
+.board .brow.me{background:#fff3cd;border:2px solid var(--yellow);}
+.board .brow .rank{font-size:1.1rem;width:42px;}
+.board .brow .nm{flex:1;color:#333;}
+.board .brow .sc{color:var(--green);font-weight:800;}
+.board-title{font-weight:800;color:var(--green);margin:6px 0;font-size:1.1rem;}
 </style></head><body>
 <div id="game-wrap">
   <div class="hud">
@@ -59,6 +68,7 @@ body{font-family:'Segoe UI','Malgun Gothic',sans-serif;}
     <div class="overlay" id="startOverlay">
       <h2>🐦 새 잡기 게임</h2>
       <p>현재형 단어를 보고, <b>과거형</b>이 등에 적힌 새를 잡아!<br>__TIME__초 안에 최대한 많이 맞혀보자! 🦝✨</p>
+      <input id="nameInput" class="name-input" type="text" maxlength="10" placeholder="이름을 입력하세요 ✍️" />
       <button class="btn" onclick="startGame()">시작하기 🚀</button>
     </div>
   </div>
@@ -69,6 +79,7 @@ const NUM_BIRDS = __NUM__;
 const GAME_TIME = __TIME__;
 let sky,score,qnum,timeLeft,timerId,animId;
 let birds=[],current=null,history=[],playing=false,acceptClick=false;
+let leaderboard=[],playerName="";
 const BIRD_COLORS=["#ef476f","#ffd166","#06d6a0","#118ab2","#f78c6b","#9b5de5","#00bbf9"];
 function rand(a,b){return a+Math.random()*(b-a);}
 function shuffle(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
@@ -76,6 +87,13 @@ function shade(hex){const c=hex.replace('#','');const n=parseInt(c,16);let r=Mat
 function birdSVG(color){return `<svg viewBox="0 0 96 64"><ellipse cx="46" cy="38" rx="26" ry="17" fill="${color}"/><circle cx="70" cy="28" r="13" fill="${color}"/><circle cx="74" cy="25" r="2.5" fill="#222"/><polygon points="82,28 96,24 82,33" fill="#f9a826"/><path d="M40 32 Q30 8 14 20 Q28 30 40 38 Z" fill="${shade(color)}"/><path d="M20 44 Q6 50 2 44" stroke="${shade(color)}" stroke-width="5" fill="none" stroke-linecap="round"/></svg>`;}
 function startGame(){
   sky=document.getElementById('sky');
+  // 이름 입력 (시작 화면일 때만)
+  const ni=document.getElementById('nameInput');
+  if(ni){
+    const nm=ni.value.trim();
+    if(!nm){ni.style.borderColor='#e63946';ni.placeholder='이름을 먼저 입력해줘! 🦝';return;}
+    playerName=nm;
+  }
   document.getElementById('startOverlay')?.remove();
   document.getElementById('resultOverlay')?.remove();
   document.getElementById('askRow').style.visibility='visible';
@@ -149,8 +167,30 @@ function endGame(){
   const items=Object.values(seen);
   let listHTML=items.map(h=>{const cls=h.ok?'ok':'no';const mark=h.ok?'✅':'❌';return `<div class="item ${cls}"><span>${mark} ${h.base} → ${h.past} → ${h.pp}</span><span class="ko">${h.meaning||''}</span></div>`;}).join('');
   if(!listHTML)listHTML='<p style="text-align:center;color:#888;">푼 문제가 없어요!</p>';
+
+  // 순위표에 기록 추가 (이번 기록 표시용 id 부여)
+  const entryId=Date.now();
+  leaderboard.push({name:playerName,score:score,id:entryId});
+  leaderboard.sort((a,b)=>b.score-a.score);
+  const medals=['🥇','🥈','🥉'];
+  let boardHTML=leaderboard.slice(0,10).map((e,i)=>{
+    const rank=medals[i]||('<b>'+(i+1)+'</b>');
+    const me=e.id===entryId?' me':'';
+    return `<div class="brow${me}"><span class="rank">${rank}</span><span class="nm">${e.name}</span><span class="sc">${e.score}점</span></div>`;
+  }).join('');
+
   const ov=document.createElement('div');ov.className='overlay';ov.id='resultOverlay';
-  ov.innerHTML=`<h2>⏱️ 시간 종료!</h2><p>🦝 잘했어! <b>${score}개</b> 잡았어! 🎉<br>아래에서 정답을 확인해보자!</p><div class="review">${listHTML}</div><button class="btn" onclick="startGame()">다시 도전 🔄</button>`;
+  ov.innerHTML=`
+    <h2>⏱️ 시간 종료!</h2>
+    <p>🦝 <b>${playerName}</b>(이)가 <b>${score}개</b> 잡았어! 🎉</p>
+    <div class="board-title">🏆 순위표</div>
+    <div class="board">${boardHTML}</div>
+    <input id="nameInput" class="name-input" type="text" maxlength="10" placeholder="다음 사람 이름 ✍️" />
+    <button class="btn" onclick="startGame()">다음 도전 🔄</button>
+    <div style="margin-top:12px;width:100%;max-width:420px;">
+      <details><summary style="cursor:pointer;color:#888;font-size:0.9rem;">내가 푼 단어 정답 보기 📖</summary>
+      <div class="review" style="margin-top:8px;">${listHTML}</div></details>
+    </div>`;
   sky.appendChild(ov);
 }
 </script></body></html>

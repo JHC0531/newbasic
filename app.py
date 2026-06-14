@@ -12,5 +12,5 @@ irregular = st.Page("pages/1_Irregular.py", title="불규칙 변화", icon="📖
 rules = st.Page("pages/2_Rules.py", title="규칙 변화", icon="📝")
 cert = st.Page("pages/3_Certificate.py", title="학습 수료증", icon="🏅")
 
-nav = st.navigation([home, irregular, rules, cert])
+nav = st.navigation([home, rules, irregular, cert])
 nav.run()

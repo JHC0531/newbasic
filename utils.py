@@ -273,9 +273,9 @@ def inject_global_css():
     /* 퀴즈 보기 — 큰 카드형 버튼 */
     .choice-btn-wrap [data-testid="stButton"] > button {
         width: 100%;
-        min-height: 64px;
-        font-size: 1.3rem;
-        font-weight: 700;
+        min-height: 90px;
+        font-size: 2.4rem;
+        font-weight: 800;
         color: var(--green);
         background: #ffffff;
         border: 2.5px solid var(--green-light);

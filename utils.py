@@ -83,8 +83,82 @@ def load_verbs() -> pd.DataFrame:
 
 @st.cache_data
 def get_irregular_verbs() -> pd.DataFrame:
+    """학습/리스트용 불규칙 동사 (Regular 제외, special 포함)"""
     df = load_verbs()
-    return df[~df["type"].isin(["Regular (-ed)", "special"])].reset_index(drop=True)
+    return df[df["type"] != "Regular (-ed)"].reset_index(drop=True)
+
+
+@st.cache_data
+def get_verbs_by_type(vtype: str) -> list:
+    """특정 유형의 동사 목록을 dict 리스트로 반환 (학습 탭용)"""
+    df = get_irregular_verbs()
+    rows = df[df["type"] == vtype]
+    verbs = []
+    for _, r in rows.iterrows():
+        verbs.append({
+            "base": r["base"].strip(),
+            "past": r["past"].strip(),
+            "pp": r["pp"].strip(),
+            "meaning": r["meaning"].strip(),
+            "type": r["type"].strip(),
+        })
+    return verbs
+
+
+def check_answer(user_input: str, correct: str) -> bool:
+    """주관식 답 체크 (대소문자·공백 무시, 슬래시 여러 정답 허용)"""
+    u = user_input.strip().lower()
+    if not u:
+        return False
+    # 정답에 슬래시가 있으면 여러 형태 모두 허용 (예: dived/dove)
+    valids = [c.strip().lower() for c in correct.split("/")]
+    return u in valids
+
+
+# 자동 오답(매력적 오답) 생성용 규칙
+def _make_distractors(base: str, correct: str, n: int = 3) -> list:
+    """동사원형·정답을 보고 그럴듯한 오답(흔한 실수형)을 생성"""
+    cand = []
+    b = base.lower()
+    # 규칙(-ed) 적용 실수형
+    if b.endswith("e"):
+        cand.append(b + "d")        # make → maked 류
+    cand.append(b + "ed")           # go → goed, eat → eated
+    # 자음+y → ied 실수
+    if b.endswith("y") and len(b) >= 2 and b[-2] not in "aeiou":
+        cand.append(b[:-1] + "ied")
+    # 마지막 자음 중복 실수 (run → runned)
+    if len(b) >= 3 and b[-1] not in "aeiouy" and b[-2] in "aeiou" and b[-3] not in "aeiou":
+        cand.append(b + b[-1] + "ed")
+    # 과거형에 -en 붙이는 실수 (과거분사 혼동)
+    if not correct.endswith("en"):
+        cand.append(correct + "en")
+    # 과거형 끝 변형
+    if correct.endswith("ought"):
+        cand.append(correct.replace("ought", " aught").replace(" ", ""))
+    if correct.endswith("aught"):
+        cand.append(correct.replace("aught", "ought"))
+    # t/ed 혼동
+    if correct.endswith("t"):
+        cand.append(correct[:-1] + "ted")
+
+    # 정답과 같거나 중복 제거
+    seen = set([correct.lower()])
+    result = []
+    for c in cand:
+        cl = c.lower().strip()
+        if cl and cl not in seen:
+            seen.add(cl)
+            result.append(c)
+    # 모자라면 기본 변형 보충
+    fallbacks = [b + "ed", b + "d", b + "t", correct + "ed", b + "en"]
+    for f in fallbacks:
+        if len(result) >= n:
+            break
+        if f.lower() not in seen and f.lower() != correct.lower():
+            seen.add(f.lower())
+            result.append(f)
+    return result[:n]
 
 
 @st.cache_data

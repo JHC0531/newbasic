@@ -23,18 +23,6 @@ c1, c2, c3 = st.columns(3)
 
 with c1:
     st.markdown("""
-    <div class="vb-card t-aaa">
-    <h3>📖 불규칙 변화</h3>
-    <div class="tag">A-B-C 등 패턴별로 불규칙 동사 익히기</div>
-    <div class="example">
-    원형 → 과거형 → 과거분사 변화 패턴 5가지를 그림과 표로 한눈에 정리했어요.
-    </div>
-    </div>
-    """, unsafe_allow_html=True)
-    st.page_link("pages/1_Irregular.py", label="불규칙 변화 보러가기 →", icon="📖")
-
-with c2:
-    st.markdown("""
     <div class="vb-card t-abb">
     <h3>📝 규칙 변화</h3>
     <div class="tag">-ed 붙이는 규칙 4가지 정리</div>
@@ -44,6 +32,18 @@ with c2:
     </div>
     """, unsafe_allow_html=True)
     st.page_link("pages/2_Rules.py", label="규칙 변화 보러가기 →", icon="📝")
+
+with c2:
+    st.markdown("""
+    <div class="vb-card t-aaa">
+    <h3>📖 불규칙 변화</h3>
+    <div class="tag">A-B-C 등 패턴별로 불규칙 동사 익히기</div>
+    <div class="example">
+    원형 → 과거형 → 과거분사 변화 패턴 5가지를 그림과 표로 한눈에 정리했어요.
+    </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.page_link("pages/1_Irregular.py", label="불규칙 변화 보러가기 →", icon="📖")
 
 with c3:
     st.markdown("""

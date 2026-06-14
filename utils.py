@@ -269,6 +269,25 @@ def inject_global_css():
         color: var(--green);
         margin: 3px;
     }
+
+    /* 퀴즈 보기 — 큰 카드형 버튼 */
+    .choice-btn-wrap [data-testid="stButton"] > button {
+        width: 100%;
+        min-height: 64px;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--green);
+        background: #ffffff;
+        border: 2.5px solid var(--green-light);
+        border-radius: 14px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        transition: all 0.15s;
+    }
+    .choice-btn-wrap [data-testid="stButton"] > button:hover {
+        background: var(--green-pale);
+        border-color: var(--green);
+        transform: translateY(-2px);
+    }
     </style>
     """, unsafe_allow_html=True)
 

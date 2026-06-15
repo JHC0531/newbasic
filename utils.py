@@ -234,6 +234,114 @@ def load_rules_quiz() -> pd.DataFrame:
     )
 
 
+# ── -ed 발음 분류 ──
+# 발음 예외 사전 (자동 분류가 틀리는 단어만 직접 지정)
+_ED_SOUND_OVERRIDE = {
+    "used": "d", "used": "d",   # use의 s는 /z/ 유성음
+}
+
+
+def classify_ed_sound(base: str, past: str = "") -> str:
+    """규칙 동사 과거형의 -ed 발음 유형 반환: 't' (/t/), 'd' (/d/), 'id' (/ɪd/)"""
+    if past and past.lower() in _ED_SOUND_OVERRIDE:
+        return _ED_SOUND_OVERRIDE[past.lower()]
+    b = base.lower().strip()
+    # 묵음 e 제거 (자음+e로 끝나면 실제 끝소리로 판단)
+    if b.endswith("e") and len(b) >= 2 and b[-2] not in "aeiou":
+        stem = b[:-1]
+    else:
+        stem = b
+    # t, d로 끝 → /ɪd/
+    if stem.endswith("t") or stem.endswith("d"):
+        return "id"
+    # 무성음으로 끝 → /t/
+    if stem.endswith(("k", "p", "f", "x", "s", "ch", "sh", "gh")) or b.endswith(("ce", "ke", "pe", "fe")):
+        return "t"
+    # 나머지 (유성음·모음) → /d/
+    return "d"
+
+
+# -ed 발음을 TTS가 구분해서 읽도록 만든 가짜 철자
+# {정답형 단어 어간}에 각 발음을 붙임. 예: walk → wakt/wakd/wakid
+def ed_fake_spellings(base: str) -> dict:
+    """세 가지 -ed 발음의 가짜 철자 생성 (TTS 듣기용).
+    반환: {'t': '...', 'd': '...', 'id': '...'}"""
+    b = base.lower().strip()
+    # 어간 만들기: 묵음 e 제거, y→i 등 단순화
+    if b.endswith("e") and len(b) >= 2 and b[-2] not in "aeiou":
+        stem = b[:-1]
+    elif b.endswith("y") and len(b) >= 2 and b[-2] not in "aeiou":
+        stem = b[:-1] + "i"
+    else:
+        stem = b
+    return {
+        "t": stem + "t",      # /t/ 소리
+        "d": stem + "d",      # /d/ 소리
+        "id": stem + "id",    # /ɪd/ 소리
+    }
+
+
+# 규칙 동사 풀 (진단평가·HOMEWORK·게임 공용) — 규칙번호별
+# 발음 학습용 추가 동사 (특히 /ɪd/ 보강)
+_PRONUNCIATION_EXTRA = [
+    ("want", "wanted", "1", "id"),
+    ("need", "needed", "1", "id"),
+    ("end", "ended", "1", "id"),
+    ("start", "started", "1", "id"),
+    ("wait", "waited", "1", "id"),
+    ("paint", "painted", "1", "id"),
+    ("jump", "jumped", "1", "t"),
+    ("ask", "asked", "1", "t"),
+    ("call", "called", "1", "d"),
+    ("open", "opened", "1", "d"),
+]
+
+
+@st.cache_data
+def get_regular_verbs(include_extra: bool = False) -> list:
+    """규칙 동사 목록 [{base, past, rule, sound}, ...]
+    include_extra=True면 발음 학습용 추가 동사 포함"""
+    df = load_rules_quiz()
+    verbs = []
+    seen = set()
+    for _, r in df.iterrows():
+        base = r["동사원형"].strip()
+        past = r["정답"].strip()
+        key = (base, past)
+        if key in seen:
+            continue
+        seen.add(key)
+        verbs.append({
+            "base": base,
+            "past": past,
+            "rule": r["규칙번호"].strip(),
+            "sound": classify_ed_sound(base, past),
+        })
+    if include_extra:
+        for base, past, rule, sound in _PRONUNCIATION_EXTRA:
+            if (base, past) not in seen:
+                seen.add((base, past))
+                verbs.append({"base": base, "past": past, "rule": rule, "sound": sound})
+    return verbs
+
+
+# 규칙번호 → 사람이 읽는 이름
+RULE_NAMES = {
+    "1": "동사원형 + -ed",
+    "2": "자음 + e → -d",
+    "3a": "자음 + y → -ied",
+    "3b": "모음 + y → -ed",
+    "4": "단모음+단자음 → 자음 겹침",
+}
+
+# -ed 발음 유형 → 표시 이름
+SOUND_NAMES = {
+    "t": "/t/ 발음 (무성음 뒤)",
+    "d": "/d/ 발음 (유성음 뒤)",
+    "id": "/ɪd/ 발음 (t·d 뒤)",
+}
+
+
 
 # 학습인증 30문항 데이터 (CSV 깨짐 방지를 위해 코드에 직접 내장)
 _CERT_QUIZ_DATA = [
@@ -448,6 +556,59 @@ def make_certificate(name: str, score: int, total: int) -> bytes:
         mascot = Image.open(MASCOT_PATH).convert("RGBA")
         mascot.thumbnail((120, 120))
         img.paste(mascot, (W - 200, H - 200), mascot)
+    except Exception:
+        pass
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def make_homework_cert(name: str, score: int, total: int) -> bytes:
+    """숙제 확인증 PNG를 만들어 bytes로 반환"""
+    W, H = 1000, 680
+    bg = (255, 248, 225)        # light cream
+    green = (45, 106, 79)
+    green_light = (82, 183, 136)
+    orange = (248, 150, 30)
+    dark = (26, 26, 46)
+    gray = (107, 114, 128)
+
+    img = Image.new("RGB", (W, H), bg)
+    draw = ImageDraw.Draw(img)
+
+    draw.rectangle([20, 20, W - 20, H - 20], outline=green, width=6)
+    draw.rectangle([34, 34, W - 34, H - 34], outline=orange, width=3)
+
+    def font(bold, size):
+        path = str(FONT_BOLD if bold else FONT_REGULAR)
+        return ImageFont.truetype(path, size)
+
+    def center(text, y, fnt, fill):
+        bbox = draw.textbbox((0, 0), text, font=fnt)
+        w = bbox[2] - bbox[0]
+        draw.text(((W - w) / 2, y), text, font=fnt, fill=fill)
+
+    center("숙 제 확 인 증", 78, font(True, 54), green)
+    center("📒 규칙 동사 과거형 (-ed) 📒", 160, font(True, 28), green_light)
+
+    draw.line([180, 222, W - 180, 222], fill=orange, width=3)
+
+    center("위 학생은 규칙 동사 과거형 숙제를", 270, font(False, 27), dark)
+    center("끝까지 성실히 완료하였습니다! 🎉", 310, font(False, 27), dark)
+
+    center(f"{name}", 388, font(True, 60), green)
+
+    pct = round(score / total * 100) if total else 0
+    center(f"숙제 점수:  {score} / {total}   ({pct}점)", 495, font(True, 36), dark)
+
+    today = datetime.now().strftime("%Y년 %m월 %d일")
+    center(today, 562, font(False, 25), gray)
+
+    try:
+        mascot = Image.open(MASCOT_PATH).convert("RGBA")
+        mascot.thumbnail((115, 115))
+        img.paste(mascot, (W - 195, H - 195), mascot)
     except Exception:
         pass
 

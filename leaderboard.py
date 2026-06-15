@@ -4,19 +4,20 @@ from datetime import datetime
 import streamlit as st
 
 
-def _get_sheet():
-    """구글시트 워크시트 객체 반환. 설정 안 됐으면 None."""
+def _get_sheet(_debug=False):
+    """구글시트 워크시트 객체 반환. 설정 안 됐으면 None.
+    _debug=True면 실패 이유를 문자열로 반환 (진단용)."""
     try:
         import gspread
         from google.oauth2.service_account import Credentials
-    except ImportError:
-        return None
+    except ImportError as e:
+        return f"라이브러리 없음: {e}" if _debug else None
 
     try:
         if "gcp_service_account" not in st.secrets:
-            return None
-    except Exception:
-        return None
+            return "secrets에 gcp_service_account 없음" if _debug else None
+    except Exception as e:
+        return f"secrets 읽기 실패: {e}" if _debug else None
 
     try:
         scopes = [
@@ -29,10 +30,18 @@ def _get_sheet():
         client = gspread.authorize(creds)
         sheet_url = st.secrets.get("sheet_url")
         if not sheet_url:
-            return None
+            return "secrets에 sheet_url 없음" if _debug else None
         return client.open_by_url(sheet_url).sheet1
-    except Exception:
-        return None
+    except Exception as e:
+        return f"시트 연결 실패: {type(e).__name__}: {e}" if _debug else None
+
+
+def debug_reason() -> str:
+    """진단용: 연결 실패 이유를 문자열로 반환"""
+    result = _get_sheet(_debug=True)
+    if isinstance(result, str):
+        return result
+    return "연결 성공 ✓"
 
 
 def is_online_ranking_available() -> bool:

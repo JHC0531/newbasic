@@ -121,7 +121,7 @@ with tabs[len(TYPE_TABS)]:
                 except (ValueError, TypeError):
                     sc = 0
                 if nm:
-                    if lb.add_score(nm, sc):
+                    if lb.add_score(nm, sc, game="irregular"):
                         lb.get_ranking.clear()
                         st.session_state.last_saved_ts = ts
                         st.success(f"🎉 {nm}님의 {sc}점이 자동으로 등록됐어!")
@@ -142,7 +142,7 @@ with tabs[len(TYPE_TABS)]:
                 st.markdown("<div style='height:28px;'></div>", unsafe_allow_html=True)
                 if st.button("순위 등록 🏅", key="lb_submit", use_container_width=True):
                     if reg_name.strip():
-                        ok = lb.add_score(reg_name.strip(), int(reg_score))
+                        ok = lb.add_score(reg_name.strip(), int(reg_score), game="irregular")
                         if ok:
                             lb.get_ranking.clear()
                             st.success(f"🎉 {reg_name.strip()}님, {int(reg_score)}점 등록 완료!")
@@ -152,7 +152,7 @@ with tabs[len(TYPE_TABS)]:
                         st.warning("이름을 입력해줘!")
 
         # 순위표 표시
-        ranking = lb.get_ranking(top_n=20)
+        ranking = lb.get_ranking(top_n=20, game="irregular")
         if ranking:
             medals = ["🥇", "🥈", "🥉"]
             rows = ""

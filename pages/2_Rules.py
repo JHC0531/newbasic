@@ -1,220 +1,369 @@
 import random
 import streamlit as st
-from utils import inject_global_css, MASCOT_PATH, load_rules_quiz, random_message
+import streamlit.components.v1 as components
+from utils import (
+    inject_global_css, MASCOT_PATH, load_rules_quiz,
+    get_regular_verbs, ed_fake_spellings, classify_ed_sound,
+    RULE_NAMES, SOUND_NAMES, make_homework_cert,
+)
+from bird_game import bird_game_html
+from pron_listen import pron_listen_html
 
 inject_global_css()
 
-# ── 헤더 (너구리 없이, 안내 문구) ──
 st.title("규칙 변화 📝")
 st.markdown(
     '<div style="font-size:1.05rem;font-weight:600;color:var(--green);margin-bottom:6px;">'
-    '탭을 순서대로 선택해서 규칙 변화 동사를 master하자! 🚀</div>',
+    '진단평가 → 규칙 학습 → 게임 → 숙제 순서로 master하자! 🚀</div>',
     unsafe_allow_html=True,
 )
-
 st.markdown("---")
 
 quiz_df = load_rules_quiz()
 
 # ──────────────────────────────────────────
-# 탭별 규칙 설명 정의
+# 공통 헬퍼
 # ──────────────────────────────────────────
-TABS = [
-    {
-        "label": "1️⃣ 동사원형 + -ed",
-        "rule_keys": ["1"],
-        "title": "가장 일반적인 경우: 동사원형 + -ed",
-        "desc": "대부분의 일반 동사는 정해진 규칙에 따라 변해요. 가장 기본은 동사원형 뒤에 **-ed**를 붙이는 거예요!",
-        "examples": ["want → wanted", "talk → talked", "stay → stayed"],
-        "sentence": ("I <b>listened</b> to jazz music last night.", "나는 어젯밤에 재즈 음악을 들었다."),
-        "reason": "동사원형 뒤에 그대로 <b>-ed</b>를 붙이는 가장 기본 규칙이야!",
-    },
-    {
-        "label": "2️⃣ 자음 + e → -d",
-        "rule_keys": ["2"],
-        "title": "자음 + e로 끝나는 경우: -d만 추가",
-        "desc": "이미 **e**로 끝나니까, **d**만 붙이면 돼요. 편하죠? 😎",
-        "examples": ["like → liked", "live → lived", "love → loved"],
-        "sentence": ("Many students <b>liked</b> the new school event.", "많은 학생들이 새 학교 행사를 좋아했다."),
-        "reason": "이미 <b>e</b>로 끝나니까 <b>d</b>만 붙이면 돼! (ed를 통째로 붙이지 않아)",
-    },
-    {
-        "label": "3️⃣ -y 규칙 🔑",
-        "rule_keys": ["3a", "3b"],
-        "title": "-y로 끝나는 경우: 두 가지로 나뉘어요!",
-        "desc": (
-            "**자음 + y**로 끝나면 → y를 **i**로 바꾸고 **-ed** (study → studied)<br>"
-            "**모음 + y**로 끝나면 → 그대로 **-ed** (play → played)<br><br>"
-            "y 앞에 있는 글자가 자음이냐 모음이냐가 핵심이에요! 🔑"
-        ),
-        "examples": ["study → studied", "try → tried", "play → played", "enjoy → enjoyed"],
-        "sentence": ("He <b>studied</b> in the library.", "그는 도서관에서 공부했다."),
-        "reason": "y 앞이 <b>자음</b>이면 y→i로 바꾸고 ed, y 앞이 <b>모음</b>이면 그대로 ed를 붙여!",
-    },
-    {
-        "label": "4️⃣ 단모음+단자음 → 자음 겹침 ✌️",
-        "rule_keys": ["4"],
-        "title": "단모음 + 단자음으로 끝나는 경우: 자음을 한 번 더!",
-        "desc": "짧은 모음 소리 + 자음 하나로 끝나면, 마지막 자음을 **하나 더 쓰고** -ed를 붙여요.",
-        "examples": ["stop → stopped", "plan → planned", "chat → chatted"],
-        "sentence": ("The police <b>stepped</b> into the room carefully.", "경찰이 조심스럽게 방 안으로 발을 들여놓았다."),
-        "reason": "단모음+단자음으로 끝나서 마지막 <b>자음을 하나 더 쓰고</b> ed를 붙여!",
-    },
-]
-
-QUESTIONS_PER_QUIZ = 3
-
-
-def make_quiz_pool(rule_keys):
-    """해당 규칙번호들의 문제를 합쳐 dict 리스트로 반환"""
-    pool = quiz_df[quiz_df["규칙번호"].isin(rule_keys)]
-    return pool.to_dict("records")
-
-
-def init_quiz(tab_idx, rule_keys):
-    """탭별 퀴즈 상태 초기화 (3문제 랜덤 추출)"""
-    pool = make_quiz_pool(rule_keys)
-    random.shuffle(pool)
-    selected = pool[:QUESTIONS_PER_QUIZ]
-    st.session_state[f"quiz_{tab_idx}"] = {
-        "questions": selected,
-        "idx": 0,
-        "score": 0,
-        "checked": False,
-        "selected_answer": None,
-        "raccoon": "정답을 골라봐! 🦝",
-        "finished": False,
-    }
-    # 이전 보기 셔플 상태 초기화
-    for k in list(st.session_state.keys()):
-        if k.startswith(f"choices_{tab_idx}_"):
-            del st.session_state[k]
-
-
-def build_choices(q):
-    """정답+오답2개 셔플"""
-    choices = [q["정답"], q["오답1"], q["오답2"]]
-    random.shuffle(choices)
-    return choices
-
-
 def raccoon_bubble(text, border=None):
-    """너구리 + 말풍선 (정답 고를 때만 사용)"""
     style = f"border-left:5px solid {border};" if border else ""
     c1, c2 = st.columns([1, 6])
     with c1:
         st.image(str(MASCOT_PATH), width=88)
     with c2:
-        st.markdown(
-            f'<div class="raccoon-bubble" style="margin-top:14px;{style}">{text}</div>',
-            unsafe_allow_html=True,
-        )
+        st.markdown(f'<div class="raccoon-bubble" style="margin-top:14px;{style}">{text}</div>',
+                    unsafe_allow_html=True)
 
 
 def feedback_bubble(text, border=None):
-    """너구리 없이 말풍선만 (피드백·결과용)"""
     style = f"border-left:5px solid {border};" if border else ""
-    st.markdown(
-        f'<div class="raccoon-bubble" style="margin:6px 0;{style}">{text}</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown(f'<div class="raccoon-bubble" style="margin:6px 0;{style}">{text}</div>',
+                unsafe_allow_html=True)
 
 
-def render_quiz(tab_idx, rule_keys, reason=""):
-    state_key = f"quiz_{tab_idx}"
-    if state_key not in st.session_state:
-        init_quiz(tab_idx, rule_keys)
+def word_card(big_text, sub_text="과거형을 골라봐!"):
+    st.markdown(f"""
+    <div class="verb-display" style="background:var(--green);">
+        <div class="verb-meaning" style="color:#d8f3dc;">{sub_text}</div>
+        <div class="verb-base" style="color:#ffffff;">{big_text}</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    qs = st.session_state[state_key]
 
-    # ── 결과 화면 ──
+def choice_buttons(choices, key_prefix):
+    """큰 카드형 보기 버튼. 클릭된 선택을 반환(없으면 None)."""
+    st.markdown('<div class="choice-btn-wrap">', unsafe_allow_html=True)
+    picked = None
+    bcols = st.columns(len(choices))
+    for i, ch in enumerate(choices):
+        with bcols[i]:
+            if st.button(str(ch), key=f"{key_prefix}_{i}", use_container_width=True):
+                picked = ch
+    st.markdown('</div>', unsafe_allow_html=True)
+    return picked
+
+
+# ══════════════════════════════════════════════════════════
+# 규칙 4개 탭 정의
+# ══════════════════════════════════════════════════════════
+RULE_TABS = [
+    {
+        "label": "1️⃣ 동사원형 + -ed", "rule_keys": ["1"],
+        "title": "가장 일반적인 경우: 동사원형 + -ed",
+        "desc": "대부분의 일반 동사는 동사원형 뒤에 <b>-ed</b>를 붙여요!",
+        "examples": ["want → wanted", "talk → talked", "clean → cleaned"],
+        "sentence": ("I <b>listened</b> to jazz music last night.", "나는 어젯밤에 재즈 음악을 들었다."),
+        "reason": "동사원형 뒤에 그대로 <b>-ed</b>를 붙이는 가장 기본 규칙이야!",
+    },
+    {
+        "label": "2️⃣ 자음 + e → -d", "rule_keys": ["2"],
+        "title": "자음 + e로 끝나는 경우: -d만 추가",
+        "desc": "이미 <b>e</b>로 끝나니까 <b>d</b>만 붙이면 돼요. 😎",
+        "examples": ["like → liked", "live → lived", "love → loved"],
+        "sentence": ("Many students <b>liked</b> the new school event.", "많은 학생들이 새 행사를 좋아했다."),
+        "reason": "이미 <b>e</b>로 끝나니까 <b>d</b>만 붙여! (ed를 통째로 붙이지 않아)",
+    },
+    {
+        "label": "3️⃣ -y 규칙 🔑", "rule_keys": ["3a", "3b"],
+        "title": "-y로 끝나는 경우: 두 가지로 나뉘어요!",
+        "desc": ("<b>자음 + y</b> → y를 <b>i</b>로 바꾸고 -ed (study → studied)<br>"
+                 "<b>모음 + y</b> → 그대로 -ed (play → played)"),
+        "examples": ["study → studied", "try → tried", "play → played", "enjoy → enjoyed"],
+        "sentence": ("He <b>studied</b> in the library.", "그는 도서관에서 공부했다."),
+        "reason": "y 앞이 <b>자음</b>이면 y→i로 바꾸고 ed, <b>모음</b>이면 그대로 ed!",
+    },
+    {
+        "label": "4️⃣ 단모음+단자음 ✌️", "rule_keys": ["4"],
+        "title": "단모음 + 단자음으로 끝나는 경우: 자음을 한 번 더!",
+        "desc": "짧은 모음 + 자음 하나로 끝나면, 마지막 자음을 <b>하나 더 쓰고</b> -ed!",
+        "examples": ["stop → stopped", "plan → planned", "hug → hugged"],
+        "sentence": ("The police <b>stepped</b> into the room.", "경찰이 방 안으로 발을 들여놓았다."),
+        "reason": "단모음+단자음이라 마지막 <b>자음을 하나 더 쓰고</b> ed를 붙여!",
+    },
+]
+
+# 탭 생성: 진단평가 + 규칙4 + 새잡기 + HOMEWORK
+tab_labels = ["🩺 진단평가"] + [t["label"] for t in RULE_TABS] + ["🐦 새 잡기 게임", "📒 HOMEWORK"]
+tabs = st.tabs(tab_labels)
+
+
+# ══════════════════════════════════════════════════════════
+# 발음 문제 / 규칙 문제 생성 (진단평가·HOMEWORK 공용)
+# ══════════════════════════════════════════════════════════
+def make_pron_question(verb):
+    """발음 듣기 문제 1개 생성"""
+    fk = ed_fake_spellings(verb["base"])
+    # 3개 보기: 1=/t/, 2=/d/, 3=/ɪd/ 순서 고정 (들어보고 고르기)
+    options = [
+        {"label": "1", "speak": fk["t"], "sound": "t"},
+        {"label": "2", "speak": fk["d"], "sound": "d"},
+        {"label": "3", "speak": fk["id"], "sound": "id"},
+    ]
+    return {
+        "type": "pron",
+        "word": verb["past"],
+        "base": verb["base"],
+        "options": options,
+        "answer_sound": verb["sound"],
+        "rule": verb["rule"],
+    }
+
+
+def make_spell_question(verb, pool):
+    """규칙 적용(철자) 문제 1개 생성 — 동사원형 보고 과거형 고르기"""
+    correct = verb["past"]
+    # 오답: 흔한 실수형
+    b = verb["base"]
+    wrongs = set()
+    if b.endswith("e"):
+        wrongs.add(b + "ed")
+    else:
+        wrongs.add(b + "d")
+    wrongs.add(b + "ed" if not b.endswith("e") else b[:-1] + "ed")
+    if b.endswith("y"):
+        wrongs.add(b + "ed")
+    wrongs.discard(correct)
+    wrongs = list(wrongs)[:2]
+    # 모자라면 다른 동사 과거형으로
+    while len(wrongs) < 2:
+        cand = random.choice(pool)["past"]
+        if cand != correct and cand not in wrongs:
+            wrongs.append(cand)
+    choices = [correct] + wrongs
+    random.shuffle(choices)
+    return {
+        "type": "spell",
+        "word": verb["base"],
+        "answer": correct,
+        "choices": choices,
+        "rule": verb["rule"],
+    }
+
+
+# ══════════════════════════════════════════════════════════
+# 탭 0 — 진단평가
+# ══════════════════════════════════════════════════════════
+with tabs[0]:
+    st.markdown("#### 🩺 진단평가")
+    st.caption("배울 내용을 미리 풀어보고, 어떤 규칙·발음을 공부해야 할지 확인하자! 🦝")
+
+    NUM_DIAG = 10
+
+    def init_diag():
+        pool = get_regular_verbs(include_extra=True)
+        random.shuffle(pool)
+        questions = []
+        # 발음 5 + 규칙 5 섞기
+        pron_pool = [v for v in pool]
+        random.shuffle(pron_pool)
+        for v in pron_pool[:5]:
+            questions.append(make_pron_question(v))
+        for v in pron_pool[5:10]:
+            questions.append(make_spell_question(v, pool))
+        random.shuffle(questions)
+        st.session_state.diag = {
+            "questions": questions, "idx": 0, "checked": False, "picked": None,
+            "wrong_rules": set(), "wrong_sounds": set(), "score": 0, "finished": False,
+        }
+
+    if "diag" not in st.session_state:
+        init_diag()
+    dg = st.session_state.diag
+
+    if dg["finished"]:
+        score = dg["score"]
+        total = len(dg["questions"])
+        raccoon_bubble(f"진단 끝! <b>{total}문제 중 {score}개</b> 맞았어! 🎉")
+
+        # 학습 처방
+        st.markdown("##### 📋 너구리쌤의 학습 처방전")
+        known_rules = set(RULE_NAMES) - dg["wrong_rules"]
+        if dg["wrong_rules"] or dg["wrong_sounds"]:
+            if known_rules:
+                ok_txt = ", ".join(RULE_NAMES[r] for r in sorted(known_rules) if r in RULE_NAMES)
+                if ok_txt:
+                    st.markdown(f'<div class="raccoon-bubble" style="border-left:5px solid var(--green);">'
+                                f'✅ <b>잘 아는 규칙</b>: {ok_txt}</div>', unsafe_allow_html=True)
+            if dg["wrong_rules"]:
+                no_txt = ", ".join(RULE_NAMES[r] for r in sorted(dg["wrong_rules"]) if r in RULE_NAMES)
+                st.markdown(f'<div class="raccoon-bubble" style="border-left:5px solid var(--red);">'
+                            f'📌 <b>다시 공부할 규칙</b>: {no_txt} → 해당 탭에서 복습하자!</div>',
+                            unsafe_allow_html=True)
+            if dg["wrong_sounds"]:
+                snd_txt = ", ".join(SOUND_NAMES[s] for s in sorted(dg["wrong_sounds"]) if s in SOUND_NAMES)
+                st.markdown(f'<div class="raccoon-bubble" style="border-left:5px solid var(--red);">'
+                            f'🔊 <b>다시 들어볼 발음</b>: {snd_txt}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown('<div class="raccoon-bubble" style="border-left:5px solid var(--green);">'
+                        '🏆 완벽해! 모든 규칙과 발음을 잘 알고 있어! 그래도 한 번 더 복습하면 더 좋아!</div>',
+                        unsafe_allow_html=True)
+
+        if st.button("🔄 다시 진단하기", key="diag_restart"):
+            init_diag()
+            st.rerun()
+    else:
+        q = dg["questions"][dg["idx"]]
+        q_num = dg["idx"] + 1
+        total = len(dg["questions"])
+        st.caption(f"문제 {q_num} / {total}")
+
+        if q["type"] == "pron":
+            # 발음 듣기 문제
+            html = pron_listen_html(q["word"], q["options"])
+            components.html(html, height=290, scrolling=False)
+            st.markdown('<div style="font-weight:700;color:var(--green);margin:6px 0;">'
+                        '🦝 위 단어의 알맞은 발음은 몇 번일까?</div>', unsafe_allow_html=True)
+            if not dg["checked"]:
+                picked = choice_buttons(["1번 /t/", "2번 /d/", "3번 /ɪd/"], f"diag_pron_{dg['idx']}")
+                if picked:
+                    sound_map = {"1번 /t/": "t", "2번 /d/": "d", "3번 /ɪd/": "id"}
+                    dg["picked"] = sound_map[picked]
+                    dg["checked"] = True
+                    if dg["picked"] == q["answer_sound"]:
+                        dg["score"] += 1
+                    else:
+                        dg["wrong_sounds"].add(q["answer_sound"])
+                    st.rerun()
+            else:
+                if dg["picked"] == q["answer_sound"]:
+                    feedback_bubble(f"정답이에요! 🎉 <b>{q['word']}</b>는 {SOUND_NAMES[q['answer_sound']]}!",
+                                    border="var(--green)")
+                else:
+                    feedback_bubble(f"틀렸어! 🦝 <b>{q['word']}</b>의 발음은 {SOUND_NAMES[q['answer_sound']]}(이)야.",
+                                    border="var(--red)")
+        else:
+            # 규칙 적용 문제
+            word_card(q["word"], "이 동사의 과거형은?")
+            if not dg["checked"]:
+                picked = choice_buttons(q["choices"], f"diag_spell_{dg['idx']}")
+                if picked:
+                    dg["picked"] = picked
+                    dg["checked"] = True
+                    if picked == q["answer"]:
+                        dg["score"] += 1
+                    else:
+                        dg["wrong_rules"].add(q["rule"])
+                    st.rerun()
+            else:
+                if dg["picked"] == q["answer"]:
+                    feedback_bubble(f"정답이에요! 🎉 <b>{q['word']} → {q['answer']}</b>", border="var(--green)")
+                else:
+                    rule_name = RULE_NAMES.get(q["rule"], "")
+                    feedback_bubble(f"틀렸어! 🦝 답은 <b>{q['answer']}</b>(이)야. "
+                                    f"<br><span style='font-size:0.9rem;color:#555;'>👉 규칙: {rule_name}</span>",
+                                    border="var(--red)")
+
+        if dg["checked"]:
+            is_last = dg["idx"] + 1 >= total
+            label = "진단 결과 보기 →" if is_last else "다음 문제 →"
+            if st.button(label, key=f"diag_next_{dg['idx']}", type="primary"):
+                if is_last:
+                    dg["finished"] = True
+                else:
+                    dg["idx"] += 1
+                    dg["checked"] = False
+                    dg["picked"] = None
+                st.rerun()
+
+
+# ══════════════════════════════════════════════════════════
+# 탭 1~4 — 규칙 학습 + 미니퀴즈
+# ══════════════════════════════════════════════════════════
+QUESTIONS_PER_QUIZ = 3
+
+
+def init_rule_quiz(tab_idx, rule_keys):
+    pool = quiz_df[quiz_df["규칙번호"].isin(rule_keys)].to_dict("records")
+    random.shuffle(pool)
+    st.session_state[f"rq_{tab_idx}"] = {
+        "questions": pool[:QUESTIONS_PER_QUIZ], "idx": 0, "score": 0,
+        "checked": False, "picked": None, "finished": False,
+    }
+    for k in list(st.session_state.keys()):
+        if k.startswith(f"rqchoices_{tab_idx}_"):
+            del st.session_state[k]
+
+
+def render_rule_quiz(tab_idx, rule_keys, reason):
+    sk = f"rq_{tab_idx}"
+    if sk not in st.session_state:
+        init_rule_quiz(tab_idx, rule_keys)
+    qs = st.session_state[sk]
+
     if qs["finished"]:
-        score = qs["score"]
-        total = len(qs["questions"])
+        score, total = qs["score"], len(qs["questions"])
         msg = "완벽해! 🏆" if score == total else "잘했어! 🦝"
         feedback_bubble(f"{total}문제 중 <b>{score}개</b> 맞았어! {msg}")
-        st.markdown("")
-        if st.button("🔄 복습하기 (다른 문제)", key=f"review_{tab_idx}"):
-            init_quiz(tab_idx, rule_keys)
+        if st.button("🔄 복습하기", key=f"rqreview_{tab_idx}"):
+            init_rule_quiz(tab_idx, rule_keys)
             st.rerun()
         return
 
     q = qs["questions"][qs["idx"]]
-    q_num = qs["idx"] + 1
     total = len(qs["questions"])
+    st.caption(f"문제 {qs['idx']+1} / {total}")
 
-    # 선택지 빌드 (문제별로 고정 — 세션에 저장)
-    choice_key = f"choices_{tab_idx}_{qs['idx']}"
-    if choice_key not in st.session_state:
-        st.session_state[choice_key] = build_choices(q)
-    choices = st.session_state[choice_key]
+    ckey = f"rqchoices_{tab_idx}_{qs['idx']}"
+    if ckey not in st.session_state:
+        ch = [q["정답"], q["오답1"], q["오답2"]]
+        random.shuffle(ch)
+        st.session_state[ckey] = ch
+    choices = st.session_state[ckey]
 
-    st.caption(f"문제 {q_num} / {total}")
+    word_card(q["동사원형"], "이 동사의 과거형은?")
+    raccoon_bubble("정답을 골라봐! 🦝")
 
-    # ── 문제 카드 (가로 전체, 진한 녹색) ──
-    st.markdown(f"""
-    <div class="verb-display" style="background:var(--green);">
-        <div class="verb-meaning" style="color:#d8f3dc;">과거형과 과거분사형은?</div>
-        <div class="verb-base" style="color:#ffffff;">{q['동사원형']}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # ── 너구리 말풍선: 정답을 골라봐! ──
-    raccoon_bubble(qs["raccoon"])
-
-    # ── 보기 (큰 카드형 버튼) ──
     if not qs["checked"]:
-        st.markdown('<div class="choice-btn-wrap">', unsafe_allow_html=True)
-        bcols = st.columns(len(choices))
-        for i, choice in enumerate(choices):
-            with bcols[i]:
-                if st.button(choice, key=f"pick_{tab_idx}_{qs['idx']}_{i}", use_container_width=True):
-                    qs["checked"] = True
-                    qs["selected_answer"] = choice
-                    if choice == q["정답"]:
-                        qs["score"] += 1
-                    st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+        picked = choice_buttons(choices, f"rqpick_{tab_idx}_{qs['idx']}")
+        if picked:
+            qs["checked"] = True
+            qs["picked"] = picked
+            if picked == q["정답"]:
+                qs["score"] += 1
+            st.rerun()
     else:
-        # 정답/오답 피드백 (너구리 없이 말풍선만)
-        if qs["selected_answer"] == q["정답"]:
-            feedback_bubble(f"정답이에요! 🎉 <b>{q['동사원형']} → {q['정답']}</b>",
-                            border="var(--green)")
+        if qs["picked"] == q["정답"]:
+            feedback_bubble(f"정답이에요! 🎉 <b>{q['동사원형']} → {q['정답']}</b>", border="var(--green)")
         else:
-            feedback_bubble(
-                f"틀렸어! 🦝 답은 <b>{q['동사원형']} → {q['정답']}</b>(이)야.<br>"
-                f"<span style='font-size:0.92rem;color:#555;'>👉 {reason}</span>",
-                border="var(--red)",
-            )
-
-        # 예문 표시
+            feedback_bubble(f"틀렸어! 🦝 답은 <b>{q['동사원형']} → {q['정답']}</b>(이)야.<br>"
+                            f"<span style='font-size:0.92rem;color:#555;'>👉 {reason}</span>",
+                            border="var(--red)")
         sentence = str(q.get("예문", "")).strip()
         if sentence and sentence.lower() != "nan":
-            highlighted = sentence.replace(q["정답"], f"<b style='color:var(--green)'>{q['정답']}</b>")
-            st.markdown(f"<div style='margin:10px 0;color:#555;'>📖 {highlighted}</div>",
-                        unsafe_allow_html=True)
-
+            hl = sentence.replace(q["정답"], f"<b style='color:var(--green)'>{q['정답']}</b>")
+            st.markdown(f"<div style='margin:10px 0;color:#555;'>📖 {hl}</div>", unsafe_allow_html=True)
         is_last = qs["idx"] + 1 >= total
-        btn_label = "결과 보기 →" if is_last else "계속하기 →"
-        if st.button(btn_label, key=f"next_{tab_idx}", type="primary"):
+        if st.button("결과 보기 →" if is_last else "계속하기 →", key=f"rqnext_{tab_idx}", type="primary"):
             if is_last:
                 qs["finished"] = True
             else:
                 qs["idx"] += 1
                 qs["checked"] = False
-                qs["selected_answer"] = None
-                qs["raccoon"] = "정답을 골라봐! 🦝"
+                qs["picked"] = None
             st.rerun()
 
 
-# ──────────────────────────────────────────
-# 탭 렌더링
-# ──────────────────────────────────────────
-tabs = st.tabs([t["label"] for t in TABS])
-
-for tab_idx, (tab, tab_def) in enumerate(zip(tabs, TABS)):
-    with tab:
-        # 규칙 설명
+for i, tab_def in enumerate(RULE_TABS):
+    with tabs[i + 1]:
         examples_html = "".join(f'<span class="rule-ex">{ex}</span>' for ex in tab_def["examples"])
         eng, kor = tab_def["sentence"]
         st.markdown(f"""
@@ -227,6 +376,120 @@ for tab_idx, (tab, tab_def) in enumerate(zip(tabs, TABS)):
         </div>
         </div>
         """, unsafe_allow_html=True)
-
         st.markdown("#### 🎯 바로 풀어보기")
-        render_quiz(tab_idx, tab_def["rule_keys"], tab_def["reason"])
+        render_rule_quiz(i + 1, tab_def["rule_keys"], tab_def["reason"])
+
+
+# ══════════════════════════════════════════════════════════
+# 탭 5 — 새 잡기 게임 (규칙 동사, 현재형→과거형)
+# ══════════════════════════════════════════════════════════
+with tabs[5]:
+    st.markdown("#### 🐦 새 잡기 게임")
+    st.caption("현재형을 보고, 과거형이 등에 적힌 새를 60초 안에 잡아! 🦝")
+    reg_verbs = get_regular_verbs(include_extra=True)
+    # bird_game은 {base, past, pp, meaning} 형식 필요 → 맞춰주기
+    game_verbs = [{"base": v["base"], "past": v["past"], "pp": v["past"],
+                   "meaning": ""} for v in reg_verbs]
+    html = bird_game_html(game_verbs, num_birds=5, game_time=60)
+    components.html(html, height=560, scrolling=False)
+
+
+# ══════════════════════════════════════════════════════════
+# 탭 6 — HOMEWORK
+# ══════════════════════════════════════════════════════════
+with tabs[6]:
+    st.markdown("#### 📒 HOMEWORK")
+    st.caption("발음 5문제 + 과거형 5문제! 다 풀면 숙제 확인증을 받을 수 있어! 🦝✨")
+
+    NUM_HW = 10
+
+    def init_hw():
+        pool = get_regular_verbs(include_extra=True)
+        random.shuffle(pool)
+        questions = []
+        for v in pool[:5]:
+            questions.append(make_pron_question(v))
+        for v in pool[5:10]:
+            questions.append(make_spell_question(v, pool))
+        random.shuffle(questions)
+        st.session_state.hw = {
+            "questions": questions, "idx": 0, "checked": False, "picked": None,
+            "score": 0, "finished": False, "name": "",
+        }
+
+    if "hw" not in st.session_state:
+        init_hw()
+    hw = st.session_state.hw
+
+    if hw["finished"]:
+        score = hw["score"]
+        total = len(hw["questions"])
+        raccoon_bubble(f"숙제 완료! <b>{total}문제 중 {score}개</b> 맞았어! 🎉")
+
+        name = st.text_input("이름을 입력하면 숙제 확인증을 만들어줄게! ✍️", key="hw_name")
+        if name.strip():
+            cert = make_homework_cert(name.strip(), score, total)
+            st.image(cert, caption="숙제 확인증 🦝", use_container_width=True)
+            st.download_button("📥 숙제 확인증 저장하기", data=cert,
+                               file_name=f"homework_{name.strip()}.png", mime="image/png")
+
+        if st.button("🔄 숙제 다시 풀기", key="hw_restart"):
+            init_hw()
+            st.rerun()
+    else:
+        q = hw["questions"][hw["idx"]]
+        q_num = hw["idx"] + 1
+        total = len(hw["questions"])
+        st.caption(f"문제 {q_num} / {total}")
+
+        if q["type"] == "pron":
+            html = pron_listen_html(q["word"], q["options"])
+            components.html(html, height=290, scrolling=False)
+            st.markdown('<div style="font-weight:700;color:var(--green);margin:6px 0;">'
+                        '🦝 위 단어의 알맞은 발음은?</div>', unsafe_allow_html=True)
+            if not hw["checked"]:
+                picked = choice_buttons(["1번 /t/", "2번 /d/", "3번 /ɪd/"], f"hw_pron_{hw['idx']}")
+                if picked:
+                    sound_map = {"1번 /t/": "t", "2번 /d/": "d", "3번 /ɪd/": "id"}
+                    hw["picked"] = sound_map[picked]
+                    hw["checked"] = True
+                    if hw["picked"] == q["answer_sound"]:
+                        hw["score"] += 1
+                    st.rerun()
+            else:
+                if hw["picked"] == q["answer_sound"]:
+                    feedback_bubble(f"정답이에요! 🎉 <b>{q['word']}</b>는 {SOUND_NAMES[q['answer_sound']]}!",
+                                    border="var(--green)")
+                else:
+                    feedback_bubble(f"틀렸어! 🦝 <b>{q['word']}</b>의 발음은 {SOUND_NAMES[q['answer_sound']]}(이)야.",
+                                    border="var(--red)")
+        else:
+            word_card(q["word"], "이 동사의 과거형은?")
+            if not hw["checked"]:
+                picked = choice_buttons(q["choices"], f"hw_spell_{hw['idx']}")
+                if picked:
+                    hw["picked"] = picked
+                    hw["checked"] = True
+                    if picked == q["answer"]:
+                        hw["score"] += 1
+                    st.rerun()
+            else:
+                if hw["picked"] == q["answer"]:
+                    feedback_bubble(f"정답이에요! 🎉 <b>{q['word']} → {q['answer']}</b>", border="var(--green)")
+                else:
+                    rule_name = RULE_NAMES.get(q["rule"], "")
+                    feedback_bubble(f"틀렸어! 🦝 답은 <b>{q['answer']}</b>(이)야. "
+                                    f"<br><span style='font-size:0.9rem;color:#555;'>👉 규칙: {rule_name}</span>",
+                                    border="var(--red)")
+
+        if hw["checked"]:
+            is_last = hw["idx"] + 1 >= total
+            label = "숙제 끝내기 →" if is_last else "다음 문제 →"
+            if st.button(label, key=f"hw_next_{hw['idx']}", type="primary"):
+                if is_last:
+                    hw["finished"] = True
+                else:
+                    hw["idx"] += 1
+                    hw["checked"] = False
+                    hw["picked"] = None
+                st.rerun()

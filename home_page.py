@@ -1,10 +1,10 @@
 import streamlit as st
-from utils import inject_global_css, MASCOT_PATH
+from utils import inject_global_css, MASCOT_PATH, make_app_qr
 
 inject_global_css()
 
 # ── Intro ──
-col1, col2 = st.columns([1, 4])
+col1, col2, col3 = st.columns([1, 3, 1])
 with col1:
     st.image(str(MASCOT_PATH), width=140)
 with col2:
@@ -15,6 +15,13 @@ with col2:
     영어 동사의 과거형·과거분사형을 함께 공부해보자!  
     왼쪽 사이드바 또는 아래 메뉴에서 원하는 학습 방법을 골라봐.
     """)
+with col3:
+    st.markdown(
+        '<div style="text-align:center;font-size:0.8rem;color:var(--green);'
+        'font-weight:700;margin-bottom:4px;">📱 앱 바로가기</div>',
+        unsafe_allow_html=True,
+    )
+    st.image(make_app_qr(), width=110)
 
 st.markdown("---")
 

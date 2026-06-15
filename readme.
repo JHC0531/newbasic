@@ -112,7 +112,3 @@ The app bookends the lesson (teacher-led explanation in the middle):
 - [ ] Add **adaptive difficulty** that responds to each learner's mistakes
 - [ ] Provide a **teacher dashboard** to track class progress and homework completion
 - [ ] Support **offline / installable (PWA)** use for low-connectivity classrooms
-
----
-
-<sub>Made with 🦝 for English learners · Powered by Streamlit · Focus: regular past tense & `-ed` pronunciation</sub>

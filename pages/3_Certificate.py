@@ -7,12 +7,12 @@ from utils import (
 
 inject_global_css()
 
-col1, col2 = st.columns([1, 5])
-with col1:
-    st.image(str(MASCOT_PATH), width=80)
-with col2:
-    st.title("학습 수료증 🏅")
-    st.caption("배운 걸 모두 모아서 도전! 수료증을 받아보자!")
+st.title("학습 수료증 🏅")
+st.markdown(
+    '<div style="font-size:1.05rem;font-weight:600;color:var(--green);margin-bottom:6px;">'
+    '배운 걸 모두 모아서 도전! 15문제를 풀고 수료증을 받아보자! 🦝</div>',
+    unsafe_allow_html=True,
+)
 
 st.markdown("---")
 
@@ -187,46 +187,38 @@ if choice_key not in st.session_state:
     st.session_state[choice_key] = build_choices(q)
 choices = st.session_state[choice_key]
 
-picked = st.radio(
-    "정답을 골라봐!",
-    choices,
-    key=f"cert_radio_{cert['idx']}",
-    index=None,
-    disabled=cert["checked"],
-)
-
-# 확인하기 / 계속하기
+# 카드 버튼 선택 (다른 퀴즈와 동일한 스타일)
 if not cert["checked"]:
-    if st.button("확인하기 ✅", type="primary"):
-        if picked is None:
-            st.warning("먼저 보기를 골라줘!")
-        else:
-            cert["checked"] = True
-            cert["selected"] = picked
-            if picked == q["정답"]:
-                cert["score"] += 1
-            st.rerun()
+    st.markdown('<div style="font-weight:700;color:var(--green);margin:6px 0;">'
+                '🦝 정답을 골라봐!</div>', unsafe_allow_html=True)
+    st.markdown('<div class="choice-btn-wrap">', unsafe_allow_html=True)
+    bcols = st.columns(len(choices))
+    for i, choice in enumerate(choices):
+        with bcols[i]:
+            if st.button(str(choice), key=f"cert_pick_{cert['idx']}_{i}", use_container_width=True):
+                cert["checked"] = True
+                cert["selected"] = choice
+                if choice == q["정답"]:
+                    cert["score"] += 1
+                st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 else:
     if cert["selected"] == q["정답"]:
         st.markdown(f"""
-        <div class="raccoon-row">
-            <div class="raccoon-bubble" style="border-left:5px solid var(--green);">
-            정답이에요! 🎉 잘했어, {cert['name']}아!
-            </div>
+        <div class="raccoon-bubble" style="border-left:5px solid var(--green);margin:8px 0;">
+        정답이에요! 🎉 잘했어, {cert['name']}아!
         </div>
         """, unsafe_allow_html=True)
     else:
         st.markdown(f"""
-        <div class="raccoon-row">
-            <div class="raccoon-bubble" style="border-left:5px solid var(--red);">
-            오답이에요! 🦝 정답은 <b>{q['정답']}</b>(이)야. 기억해두자!
-            </div>
+        <div class="raccoon-bubble" style="border-left:5px solid var(--red);margin:8px 0;">
+        오답이에요! 🦝 정답은 <b>{q['정답']}</b>(이)야. 기억해두자!
         </div>
         """, unsafe_allow_html=True)
 
     is_last = cert["idx"] + 1 >= total
     btn_label = "결과 보기 →" if is_last else "계속하기 →"
-    if st.button(btn_label, type="primary"):
+    if st.button(btn_label, type="primary", key=f"cert_next_{cert['idx']}"):
         if is_last:
             cert["finished"] = True
         else:

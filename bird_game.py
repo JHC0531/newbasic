@@ -3,7 +3,8 @@ import json
 from utils import _make_distractors
 
 
-def bird_game_html(verbs: list, num_birds: int = 5, game_time: int = 60) -> str:
+def bird_game_html(verbs: list, num_birds: int = 5, game_time: int = 60,
+                   game: str = "irregular") -> str:
     # 각 동사에 매력적 오답(흔한 실수형) 부착
     enriched = []
     for v in verbs:
@@ -195,7 +196,7 @@ function endGame(){
 
   // 부모(Streamlit)로 점수 자동 전송 (반 전체 순위표 저장용)
   try{
-    const payload={type:'bird_score',name:playerName,score:score,ts:entryId};
+    const payload={type:'bird_score',game:'__GAME__',name:playerName,score:score,ts:entryId};
     window.parent.postMessage(payload,'*');
     // URL 해시로도 백업 전달 (일부 환경 대비)
     if(window.parent && window.parent.postMessage){
@@ -204,4 +205,4 @@ function endGame(){
   }catch(e){}
 }
 </script></body></html>
-""".replace("__VERBS__", verbs_json).replace("__NUM__", str(num_birds)).replace("__TIME__", str(game_time))
+""".replace("__VERBS__", verbs_json).replace("__NUM__", str(num_birds)).replace("__TIME__", str(game_time)).replace("__GAME__", game)

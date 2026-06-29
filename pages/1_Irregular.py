@@ -78,7 +78,7 @@ with tabs[len(TYPE_TABS)]:
     st.caption("현재형을 보고, 과거형이 등에 적힌 새를 60초 안에 잡아! 🦝")
     difficulty_toggle("bird_diff")
     verbs = get_game_verbs(st.session_state.irr_hard)
-    html = bird_game_html(verbs, num_birds=5, game_time=60)
+    html = bird_game_html(verbs, num_birds=5, game_time=60, game="irregular")
     components.html(html, height=560, scrolling=False)
 
     # ── 게임 점수 자동 수신 브리지 (postMessage → URL 쿼리) ──
@@ -90,6 +90,7 @@ with tabs[len(TYPE_TABS)]:
     window.addEventListener('message', (ev)=>{
       const d = ev.data;
       if(!d || d.type!=='bird_score') return;
+      if(d.game && d.game!=='irregular') return;
       const key = d.ts || (d.name+'_'+d.score);
       if(seen.has(key)) return;
       seen.add(key);

@@ -390,7 +390,7 @@ with tabs[5]:
     # bird_game은 {base, past, pp, meaning} 형식 필요 → 맞춰주기
     game_verbs = [{"base": v["base"], "past": v["past"], "pp": v["past"],
                    "meaning": ""} for v in reg_verbs]
-    html = bird_game_html(game_verbs, num_birds=5, game_time=60)
+    html = bird_game_html(game_verbs, num_birds=5, game_time=60, game="regular")
     components.html(html, height=560, scrolling=False)
 
     # ── 반 전체 순위표 (규칙 동사 전용) ──
@@ -404,6 +404,7 @@ with tabs[5]:
         window.addEventListener('message', (ev)=>{
           const d = ev.data;
           if(!d || d.type!=='bird_score') return;
+          if(d.game!=='regular') return;
           const key = d.ts || (d.name+'_'+d.score);
           if(seen.has(key)) return;
           seen.add(key);
